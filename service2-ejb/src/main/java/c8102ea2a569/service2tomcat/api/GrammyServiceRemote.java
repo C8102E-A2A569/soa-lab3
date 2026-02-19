@@ -7,10 +7,6 @@ import c8102ea2a569.service2tomcat.exception.ValidationException;
 
 import jakarta.ejb.Remote;
 
-/**
- * Удалённый бизнес-интерфейс для операций Grammy.
- * Реализуется Stateless EJB с пулом на сервере приложений.
- */
 @Remote
 public interface GrammyServiceRemote {
 

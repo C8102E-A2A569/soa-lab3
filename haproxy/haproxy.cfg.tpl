@@ -2,11 +2,6 @@ global
     log stdout format raw local0
     maxconn 4096
 
-resolvers docker
-    nameserver dns1 127.0.0.11:53
-    timeout retry 1s
-    hold valid 5s
-
 defaults
     log     global
     mode    http
@@ -31,9 +26,11 @@ backend service1_backend
     option httpchk
     http-check send meth GET uri /actuator/health ver HTTP/1.1 hdr Host localhost
     timeout connect 5000
-
-    server service1-instance1 service1-instance1:18443 check ssl verify none inter 15s resolvers docker init-addr none
-    server service1-instance2 service1-instance2:18543 check ssl verify none inter 15s resolvers docker init-addr none
+{{ range service "service1-jetty" }}
+    server srv-{{ .Port }} {{ .Address }}:{{ .Port }} check ssl verify none inter 15s
+{{ else }}
+    server placeholder 127.0.0.1:1 backup
+{{ end }}
 
 listen stats
     bind *:8404
@@ -42,4 +39,3 @@ listen stats
     stats uri /stats
     stats refresh 10s
     stats admin if TRUE
-

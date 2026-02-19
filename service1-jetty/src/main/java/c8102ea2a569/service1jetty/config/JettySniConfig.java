@@ -13,21 +13,15 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 
-/**
- * В Docker Consul проверяет здоровье по HTTPS по IP (172.23.0.x).
- * Сертификат выдан для localhost — Jetty возвращает 400 Invalid SNI из SecureRequestCustomizer.
- * Отключаем проверку SNI в SslContextFactory и в SecureRequestCustomizer (профили instance1/instance2).
- */
+
 @Configuration
-@Profile({"instance1", "instance2"})
+@Profile("docker")
 public class JettySniConfig {
 
     @Bean
     public WebServerFactoryCustomizer<JettyServletWebServerFactory> jettySniCustomizer() {
         return factory -> factory.addServerCustomizers(server -> {
-            // Сразу при кастомизации (коннекторы могут быть уже добавлены)
             applySniDisable(server);
-            // И при старте (на случай, если коннекторы добавляются позже)
             server.addEventListener(new LifeCycle.Listener() {
                 @Override
                 public void lifeCycleStarting(LifeCycle event) {

@@ -1,7 +1,4 @@
-version: '3.8'
-
 services:
-  # Consul - Service Discovery
   consul:
     image: hashicorp/consul:1.16.1
     container_name: consul
@@ -17,7 +14,6 @@ services:
       timeout: 5s
       retries: 3
 
-  # PostgreSQL Database (локальные учётные данные: postgres/postgres/postgres)
   postgres:
     image: postgres:15
     container_name: postgres
@@ -37,19 +33,18 @@ services:
       timeout: 5s
       retries: 5
 
-  # Service1 - Instance 1
   service1-instance1:
     build:
       context: ./service1-jetty
       dockerfile: Dockerfile
     container_name: service1-instance1
     environment:
-      - SPRING_PROFILES_ACTIVE=instance1
-      - DB_HOST=postgres
+      - SPRING_PROFILES_ACTIVE=docker
+      - SERVER_PORT=18443
+      - INSTANCE_TAG=instance1
+      - INSTANCE_HOSTNAME=service1-instance1
       - CONSUL_HOST=consul
       - CONSUL_PORT=8500
-      - INSTANCE_HOSTNAME=service1-instance1
-      # БД: локальная PostgreSQL на хосте (host.docker.internal). Если нужна БД в Docker — замените на postgres:5432 и раскомментируйте depends_on: postgres.
       - SPRING_DATASOURCE_URL=jdbc:postgresql://host.docker.internal:5432/postgres
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=postgres
@@ -61,24 +56,24 @@ services:
       consul:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-k", "-f", "https://localhost:18443/actuator/health"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--no-check-certificate", "https://localhost:18443/actuator/health"]
       interval: 15s
       timeout: 10s
       retries: 5
       start_period: 40s
 
-  # Service1 - Instance 2
   service1-instance2:
     build:
       context: ./service1-jetty
       dockerfile: Dockerfile
+    container_name: service1-instance2
     environment:
-      - SPRING_PROFILES_ACTIVE=instance2
-      - DB_HOST=postgres
+      - SPRING_PROFILES_ACTIVE=docker
+      - SERVER_PORT=18543
+      - INSTANCE_TAG=instance2
+      - INSTANCE_HOSTNAME=service1-instance2
       - CONSUL_HOST=consul
       - CONSUL_PORT=8500
-      - INSTANCE_HOSTNAME=service1-instance2
-      # Та же БД, что и у instance1: локальная PostgreSQL на хосте (host.docker.internal)
       - SPRING_DATASOURCE_URL=jdbc:postgresql://host.docker.internal:5432/postgres
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=postgres
@@ -90,28 +85,91 @@ services:
       consul:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-k", "-f", "https://localhost:18543/actuator/health"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--no-check-certificate", "https://localhost:18543/actuator/health"]
       interval: 15s
       timeout: 10s
       retries: 5
       start_period: 40s
 
-  # HAProxy Load Balancer for Service1 (стартует после готовности бэкендов)
-  haproxy-service1:
-    image: haproxy:2.8-alpine
-    container_name: haproxy-service1
+  service1-instance3:
+    build:
+      context: ./service1-jetty
+      dockerfile: Dockerfile
+    container_name: service1-instance3
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SERVER_PORT=18643
+      - INSTANCE_TAG=instance3
+      - INSTANCE_HOSTNAME=service1-instance3
+      - CONSUL_HOST=consul
+      - CONSUL_PORT=8500
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://host.docker.internal:5432/postgres
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
     ports:
-      - "8443:8443"   # Service1 balanced endpoint
-      - "8404:8404"   # Stats page
+      - "18643:18643"
+    networks:
+      - soa-network
+    depends_on:
+      consul:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--no-check-certificate", "https://localhost:18643/actuator/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  service1-instance4:
+    build:
+      context: ./service1-jetty
+      dockerfile: Dockerfile
+    container_name: service1-instance4
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SERVER_PORT=18743
+      - INSTANCE_TAG=instance4
+      - INSTANCE_HOSTNAME=service1-instance4
+      - CONSUL_HOST=consul
+      - CONSUL_PORT=8500
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://host.docker.internal:5432/postgres
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+    ports:
+      - "18743:18743"
+    networks:
+      - soa-network
+    depends_on:
+      consul:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--no-check-certificate", "https://localhost:18743/actuator/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  
+
+  haproxy-service1:
+    build:
+      context: ./haproxy
+      dockerfile: Dockerfile
+    image: lab2-haproxy-consul:latest
+    container_name: haproxy-service1
+    environment:
+      - CONSUL_HTTP_ADDR=consul:8500
+      - HAPROXY_CFG=/tmp/haproxy.cfg
+      - HAPROXY_EXPECTED_INSTANCES=4
+    ports:
+      - "8443:8443"
+      - "8404:8404"
     volumes:
-      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
       - ./haproxy/certs:/usr/local/etc/haproxy/certs:ro
     networks:
       - soa-network
     depends_on:
-      service1-instance1:
-        condition: service_healthy
-      service1-instance2:
+      consul:
         condition: service_healthy
 
 networks:

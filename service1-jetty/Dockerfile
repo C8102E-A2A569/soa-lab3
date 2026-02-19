@@ -12,7 +12,7 @@ FROM eclipse-temurin:17-jre-alpine
 
 WORKDIR /app
 
-RUN apk add --no-cache curl
+# curl не ставим — при сборке часто TLS-ошибка при apk (Windows/сеть). Healthcheck в docker-compose использует wget (BusyBox).
 
 COPY --from=build /app/target/*.jar app.jar
 

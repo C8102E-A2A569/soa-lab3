@@ -15,10 +15,6 @@ import jakarta.persistence.PersistenceContext;
 
 import java.time.LocalDateTime;
 
-/**
- * Stateless EJB с бизнес-логикой Grammy.
- * Пул компонентов настраивается на сервере приложений (Wildfly).
- */
 @Stateless
 public class GrammyServiceBean implements GrammyServiceRemote {
 
